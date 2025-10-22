@@ -190,12 +190,10 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
   };
 
   const handleAssignSupervisor = (zoneId: number, supervisorId: number | null) => {
-    const today = new Date().toISOString().split('T')[0];
     setAllLocations(allLocations.map(loc => 
       loc.Location_ID === zoneId ? { 
         ...loc, 
-        Supervisor_ID: supervisorId,
-        Supervisor_Start_Date: supervisorId ? today : null
+        Supervisor_ID: supervisorId
       } : loc
     ));
     setIsManageZoneOpen(false);
@@ -249,18 +247,20 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
     
     const newAnimal: Animal = {
       Animal_ID: newAnimalId,
-      Name: formData.name,
+      Animal_Name: formData.name,
       Species: formData.species,
       Gender: formData.gender,
-      Height: parseFloat(formData.weight),
-      Birthdate: formData.birthdate,
+      Weight: parseFloat(formData.weight),
+      Birthday: formData.birthday,
+      Health_Status: formData.healthStatus || 'Good',
+      Is_Vaccinated: formData.isVaccinated || false,
       Enclosure_ID: enclosureId,
       Enclosure: enclosure
     };
     
     addAnimal(newAnimal);
     setIsAddAnimalOpen(false);
-    toast.success(`Successfully added ${formData.name} to ${enclosure?.Name || 'the zoo'}!`);
+    toast.success(`Successfully added ${formData.name} to ${enclosure?.Enclosure_Name || 'the zoo'}!`);
   };
 
   const handleUpdateAnimal = (formData: any) => {
@@ -270,11 +270,13 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
     const enclosure = enclosures.find(e => e.Enclosure_ID === enclosureId);
     
     updateAnimal(editingAnimal.Animal_ID, {
-      Name: formData.name,
+      Animal_Name: formData.name,
       Species: formData.species,
       Gender: formData.gender,
-      Height: parseFloat(formData.height),
-      Birthdate: formData.birthdate,
+      Weight: parseFloat(formData.weight),
+      Birthday: formData.birthday,
+      Health_Status: formData.healthStatus,
+      Is_Vaccinated: formData.isVaccinated,
       Enclosure_ID: enclosureId,
       Enclosure: enclosure
     });
@@ -285,7 +287,7 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
   const handleDeleteAnimal = (animal: Animal) => {
     deleteAnimal(animal.Animal_ID);
     setDeleteConfirmAnimal(null);
-    toast.success(`Successfully removed ${animal.Name} from the zoo.`);
+    toast.success(`Successfully removed ${animal.Animal_Name} from the zoo.`);
   };
 
   const getRangeLabel = () => {
@@ -662,16 +664,11 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
                         <h3 className="font-semibold text-lg">Zone {location.Zone}</h3>
                         <Badge className="bg-teal-600">{location.Zone}</Badge>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3">{location.Description}</p>
+                      <p className="text-sm text-gray-600 mb-3">{location.Location_Description}</p>
                       <p className="text-sm mb-1">
                         <span className="font-medium">Supervisor:</span>{' '}
                         {supervisor ? `${supervisor.First_Name} ${supervisor.Last_Name}` : 'Unassigned'}
                       </p>
-                      {location.Supervisor_Start_Date && (
-                        <p className="text-sm mb-3 text-gray-600">
-                          <span className="font-medium">Start Date:</span> {formatDate(location.Supervisor_Start_Date)}
-                        </p>
-                      )}
                       <p className="text-sm mb-3">
                         <span className="font-medium">Employees:</span> {zoneEmployees.length}
                       </p>
@@ -712,7 +709,7 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
               <DialogHeader>
                 <DialogTitle>Zone {viewZoneEmployees?.Zone} Employees</DialogTitle>
                 <DialogDescription>
-                  {viewZoneEmployees?.Description}
+                  {viewZoneEmployees?.Location_Description}
                 </DialogDescription>
               </DialogHeader>
               <ScrollArea className="max-h-[500px] pr-4">
@@ -911,15 +908,15 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
                             <PawPrint className="h-5 w-5" />
                           </div>
                           <div>
-                            <p className="font-medium">{animal.Name}</p>
+                            <p className="font-medium">{animal.Animal_Name}</p>
                             <p className="text-sm text-gray-600">
                               {animal.Species} • {animal.Gender === 'M' ? 'Male' : animal.Gender === 'F' ? 'Female' : 'Unknown'} • ID: {animal.Animal_ID}
                             </p>
                             <p className="text-xs text-gray-500">
-                              Height: {animal.Height} ft • Born: {formatDate(animal.Birthdate)}
+                              Weight: {animal.Weight} lbs • Born: {formatDate(animal.Birthday)}
                             </p>
                             <p className="text-xs text-gray-500">
-                              Habitat: {enclosure?.Name || 'Unknown'} • Added: {dateAddedString}
+                              Habitat: {enclosure?.Enclosure_Name || 'Unknown'} • Added: {dateAddedString}
                             </p>
                           </div>
                         </div>
@@ -950,7 +947,7 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
               <DialogHeader>
                 <DialogTitle>Manage Zone Supervisor</DialogTitle>
                 <DialogDescription>
-                  {selectedZone && `Select a supervisor for Zone ${selectedZone.Zone}: ${selectedZone.Description}`}
+                  {selectedZone && `Select a supervisor for Zone ${selectedZone.Zone}: ${selectedZone.Location_Description}`}
                 </DialogDescription>
               </DialogHeader>
               
@@ -1068,7 +1065,7 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Animal</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{deleteConfirmAnimal?.Name}</strong> ({deleteConfirmAnimal?.Species}) from the zoo? This action cannot be undone.
+              Are you sure you want to delete <strong>{deleteConfirmAnimal?.Animal_Name}</strong> ({deleteConfirmAnimal?.Species}) from the zoo? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1227,7 +1224,7 @@ function AddAnimalDialog({ isOpen, onOpenChange, onAdd, enclosures }: any) {
     species: '',
     gender: 'M',
     weight: '',
-    birthdate: '',
+    birthday: '',
     enclosureId: '1'
   });
 
@@ -1239,7 +1236,7 @@ function AddAnimalDialog({ isOpen, onOpenChange, onAdd, enclosures }: any) {
       species: '',
       gender: 'M',
       weight: '',
-      birthdate: '',
+      birthday: '',
       enclosureId: '1'
     });
   };
@@ -1311,12 +1308,12 @@ function AddAnimalDialog({ isOpen, onOpenChange, onAdd, enclosures }: any) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="birthdate">Birthdate *</Label>
+              <Label htmlFor="birthday">Birthday *</Label>
               <Input 
-                id="birthdate" 
+                id="birthday" 
                 type="date"
-                value={formData.birthdate} 
-                onChange={(e) => setFormData({...formData, birthdate: e.target.value})}
+                value={formData.birthday} 
+                onChange={(e) => setFormData({...formData, birthday: e.target.value})}
                 required 
               />
             </div>
@@ -1329,7 +1326,7 @@ function AddAnimalDialog({ isOpen, onOpenChange, onAdd, enclosures }: any) {
                 <SelectContent>
                   {enclosures.map((enc: Enclosure) => (
                     <SelectItem key={enc.Enclosure_ID} value={enc.Enclosure_ID.toString()}>
-                      {enc.Name}
+                      {enc.Enclosure_Name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1348,11 +1345,11 @@ function AddAnimalDialog({ isOpen, onOpenChange, onAdd, enclosures }: any) {
 // Edit Animal Dialog Component
 function EditAnimalDialog({ animal, isOpen, onOpenChange, onUpdate, onDelete, enclosures }: any) {
   const [formData, setFormData] = useState({
-    name: animal?.Name || '',
+    name: animal?.Animal_Name || '',
     species: animal?.Species || '',
     gender: animal?.Gender || 'M',
-    height: animal?.Height?.toString() || '',
-    birthdate: animal?.Birthdate || '',
+    weight: animal?.Weight?.toString() || '',
+    birthday: animal?.Birthday || '',
     enclosureId: animal?.Enclosure_ID?.toString() || '1'
   });
 
@@ -1360,11 +1357,11 @@ function EditAnimalDialog({ animal, isOpen, onOpenChange, onUpdate, onDelete, en
   useEffect(() => {
     if (animal) {
       setFormData({
-        name: animal.Name,
+        name: animal.Animal_Name,
         species: animal.Species,
         gender: animal.Gender,
-        height: animal.Height.toString(),
-        birthdate: animal.Birthdate,
+        weight: animal.Weight.toString(),
+        birthday: animal.Birthday,
         enclosureId: animal.Enclosure_ID.toString()
       });
     }
@@ -1383,7 +1380,7 @@ function EditAnimalDialog({ animal, isOpen, onOpenChange, onUpdate, onDelete, en
         <DialogHeader>
           <DialogTitle>Edit Animal</DialogTitle>
           <DialogDescription>
-            Update information for {animal.Name}.
+            Update information for {animal.Animal_Name}.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -1424,26 +1421,26 @@ function EditAnimalDialog({ animal, isOpen, onOpenChange, onUpdate, onDelete, en
               </Select>
             </div>
             <div>
-              <Label htmlFor="editHeight">Height (feet) *</Label>
+              <Label htmlFor="editWeight">Weight (lbs) *</Label>
               <Input 
-                id="editHeight" 
+                id="editWeight" 
                 type="number"
                 step="0.1"
-                placeholder="e.g., 3.5"
-                value={formData.height} 
-                onChange={(e) => setFormData({...formData, height: e.target.value})}
+                placeholder="e.g., 250"
+                value={formData.weight} 
+                onChange={(e) => setFormData({...formData, weight: e.target.value})}
                 required 
               />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="editBirthdate">Birthdate *</Label>
+              <Label htmlFor="editBirthday">Birthday *</Label>
               <Input 
-                id="editBirthdate" 
+                id="editBirthday" 
                 type="date"
-                value={formData.birthdate} 
-                onChange={(e) => setFormData({...formData, birthdate: e.target.value})}
+                value={formData.birthday} 
+                onChange={(e) => setFormData({...formData, birthday: e.target.value})}
                 required 
               />
             </div>
@@ -1456,7 +1453,7 @@ function EditAnimalDialog({ animal, isOpen, onOpenChange, onUpdate, onDelete, en
                 <SelectContent>
                   {enclosures.map((enc: Enclosure) => (
                     <SelectItem key={enc.Enclosure_ID} value={enc.Enclosure_ID.toString()}>
-                      {enc.Name}
+                      {enc.Enclosure_Name}
                     </SelectItem>
                   ))}
                 </SelectContent>

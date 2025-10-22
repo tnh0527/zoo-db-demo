@@ -8,7 +8,7 @@ import { enclosures } from "../data/mockData";
 
 // Using real enclosures from data
 const getHabitats = () => {
-  return ["All Animals", ...enclosures.map(enc => enc.Name)];
+  return ["All Animals", ...enclosures.map(enc => enc.Enclosure_Name)];
 };
 
 export function AnimalsPage() {
@@ -19,18 +19,18 @@ export function AnimalsPage() {
   // Get animals with their habitat information
   const displayedAnimals = selectedHabitat === "All Animals"
     ? animals.map(animal => ({
-        name: animal.Name,
+        name: animal.Animal_Name,
         species: animal.Species,
         gender: animal.Gender === 'M' ? 'Male' : animal.Gender === 'F' ? 'Female' : 'Unknown',
-        habitat: animal.Enclosure?.Name || 'Unknown'
+        habitat: animal.Enclosure?.Enclosure_Name || 'Unknown'
       }))
     : animals
-        .filter(animal => animal.Enclosure?.Name === selectedHabitat)
+        .filter(animal => animal.Enclosure?.Enclosure_Name === selectedHabitat)
         .map(animal => ({
-          name: animal.Name,
+          name: animal.Animal_Name,
           species: animal.Species,
           gender: animal.Gender === 'M' ? 'Male' : animal.Gender === 'F' ? 'Female' : 'Unknown',
-          habitat: animal.Enclosure?.Name || 'Unknown'
+          habitat: animal.Enclosure?.Enclosure_Name || 'Unknown'
         }));
 
   return (

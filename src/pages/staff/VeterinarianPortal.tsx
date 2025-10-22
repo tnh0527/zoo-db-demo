@@ -104,7 +104,7 @@ export function VeterinarianPortal({ user, onLogout }: VeterinarianPortalProps) 
       )
     );
 
-    toast.success(`Vet record updated for ${selectedAnimalInfo?.Name}`);
+    toast.success(`Vet record updated for ${selectedAnimalInfo?.Animal_Name}`);
     setVetDialogOpen(false);
   };
 
@@ -260,7 +260,7 @@ export function VeterinarianPortal({ user, onLogout }: VeterinarianPortalProps) 
               <SelectContent>
                 {enclosures.map((enclosure) => (
                   <SelectItem key={enclosure.Enclosure_ID} value={enclosure.Enclosure_ID.toString()}>
-                    {enclosure.Name}
+                    {enclosure.Enclosure_Name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -274,7 +274,7 @@ export function VeterinarianPortal({ user, onLogout }: VeterinarianPortalProps) 
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Activity className="h-5 w-5 mr-2 text-green-600" />
-                Animals in {selectedHabitatInfo.Name} ({habitatAnimals.length})
+                Animals in {selectedHabitatInfo.Enclosure_Name} ({habitatAnimals.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -288,7 +288,7 @@ export function VeterinarianPortal({ user, onLogout }: VeterinarianPortalProps) 
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <h3 className="font-medium">{animal.Name}</h3>
+                          <h3 className="font-medium">{animal.Animal_Name}</h3>
                           <p className="text-sm text-gray-600">{animal.Species}</p>
                         </div>
                         <Badge className={getHealthBadgeColor(vetStatus?.healthStatus || 'Good')}>
@@ -350,7 +350,7 @@ export function VeterinarianPortal({ user, onLogout }: VeterinarianPortalProps) 
       <Dialog open={vetDialogOpen} onOpenChange={setVetDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Update Vet Record for {selectedAnimalInfo?.Name}</DialogTitle>
+            <DialogTitle>Update Vet Record for {selectedAnimalInfo?.Animal_Name}</DialogTitle>
             <DialogDescription>
               Update veterinary information and health status
             </DialogDescription>
@@ -359,13 +359,13 @@ export function VeterinarianPortal({ user, onLogout }: VeterinarianPortalProps) 
             {/* Basic Info */}
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
-                <strong>Animal:</strong> {selectedAnimalInfo?.Name} ({selectedAnimalInfo?.Species})
+                <strong>Animal:</strong> {selectedAnimalInfo?.Animal_Name} ({selectedAnimalInfo?.Species})
               </p>
               <p className="text-sm text-blue-800">
                 <strong>Gender:</strong> {selectedAnimalInfo?.Gender === 'M' ? 'Male' : selectedAnimalInfo?.Gender === 'F' ? 'Female' : 'Unknown'}
               </p>
               <p className="text-sm text-blue-800">
-                <strong>Habitat:</strong> {selectedAnimalInfo?.Enclosure?.Name}
+                <strong>Habitat:</strong> {selectedAnimalInfo?.Enclosure?.Enclosure_Name}
               </p>
             </div>
 

@@ -109,7 +109,7 @@ export function ZookeeperPortal({ user, onLogout }: ZookeeperPortalProps) {
       )
     );
 
-    toast.success(`Care logged for ${selectedAnimalInfo?.Name}`);
+    toast.success(`Care logged for ${selectedAnimalInfo?.Animal_Name}`);
     setCareDialogOpen(false);
   };
 
@@ -133,7 +133,7 @@ export function ZookeeperPortal({ user, onLogout }: ZookeeperPortalProps) {
           : status
       )
     );
-    toast.success(`${selectedHabitatInfo?.Name} cleaning status updated`);
+    toast.success(`${selectedHabitatInfo?.Enclosure_Name} cleaning status updated`);
   };
 
   // Calculate stats
@@ -226,7 +226,7 @@ export function ZookeeperPortal({ user, onLogout }: ZookeeperPortalProps) {
               <SelectContent>
                 {enclosures.map((enclosure) => (
                   <SelectItem key={enclosure.Enclosure_ID} value={enclosure.Enclosure_ID.toString()}>
-                    {enclosure.Name}
+                    {enclosure.Enclosure_Name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -240,7 +240,7 @@ export function ZookeeperPortal({ user, onLogout }: ZookeeperPortalProps) {
             {/* Habitat Status */}
             <Card>
               <CardHeader>
-                <CardTitle>{selectedHabitatInfo.Name} - Status</CardTitle>
+                <CardTitle>{selectedHabitatInfo.Enclosure_Name} - Status</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -276,7 +276,7 @@ export function ZookeeperPortal({ user, onLogout }: ZookeeperPortalProps) {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Heart className="h-5 w-5 mr-2 text-green-600" />
-                  Animals in {selectedHabitatInfo.Name} ({habitatAnimals.length})
+                  Animals in {selectedHabitatInfo.Enclosure_Name} ({habitatAnimals.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -290,7 +290,7 @@ export function ZookeeperPortal({ user, onLogout }: ZookeeperPortalProps) {
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div>
-                            <h3 className="font-medium">{animal.Name}</h3>
+                            <h3 className="font-medium">{animal.Animal_Name}</h3>
                             <p className="text-sm text-gray-600">{animal.Species}</p>
                           </div>
                           {careStatus?.fed ? (
@@ -340,7 +340,7 @@ export function ZookeeperPortal({ user, onLogout }: ZookeeperPortalProps) {
       <Dialog open={careDialogOpen} onOpenChange={setCareDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Log Care for {selectedAnimalInfo?.Name}</DialogTitle>
+            <DialogTitle>Log Care for {selectedAnimalInfo?.Animal_Name}</DialogTitle>
             <DialogDescription>
               Update the care status for this animal
             </DialogDescription>
@@ -362,10 +362,10 @@ export function ZookeeperPortal({ user, onLogout }: ZookeeperPortalProps) {
 
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
-                <strong>Animal:</strong> {selectedAnimalInfo?.Name} ({selectedAnimalInfo?.Species})
+                <strong>Animal:</strong> {selectedAnimalInfo?.Animal_Name} ({selectedAnimalInfo?.Species})
               </p>
               <p className="text-sm text-blue-800">
-                <strong>Habitat:</strong> {selectedAnimalInfo?.Enclosure?.Name}
+                <strong>Habitat:</strong> {selectedAnimalInfo?.Enclosure?.Enclosure_Name}
               </p>
               <p className="text-sm text-blue-800">
                 <strong>Status:</strong> {selectedAnimalStatus?.fed ? 'Fed' : 'Not Fed'}
