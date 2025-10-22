@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../components/ui/alert-dialog";
-import { ShoppingCart, Trash2, Plus, Minus, Crown } from "lucide-react";
-import { currentUser, memberships } from "../data/mockData";
+import { ShoppingCart, Trash2, Plus, Minus, Crown, CheckCircle2 } from "lucide-react";
+import { currentUser, memberships, purchases } from "../data/mockData";
 import { Badge } from "../components/ui/badge";
+import { toast } from "sonner@2.0.3";
 
 interface CartItem {
   id: number;
@@ -27,6 +28,7 @@ interface CartPageProps {
 export function CartPage({ cart, removeFromCart, updateCartQuantity, clearCart, onNavigate }: CartPageProps) {
   const [itemToRemove, setItemToRemove] = useState<{ id: number; type: 'item' | 'food'; name: string } | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
+  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
 
   // Check if current user has an active membership
   const hasMembership = currentUser && 'Customer_ID' in currentUser && 
@@ -69,6 +71,87 @@ export function CartPage({ cart, removeFromCart, updateCartQuantity, clearCart, 
   const confirmClearCart = () => {
     clearCart();
     setShowClearDialog(false);
+  };
+
+  const handleCheckout = () => {
+    setShowCheckoutDialog(true);
+  };
+
+  const confirmCheckout = () => {
+    if (!currentUser || !('Customer_ID' in currentUser)) {
+      toast.error('Please log in to complete your purchase');
+      setShowCheckoutDialog(false);
+      return;
+    }
+
+    // Check if membership is in cart (ID 9000)
+    const hasMembershipInCart = cart.some(item => item.id === 9000);
+
+    // Create new purchase record
+    const newPurchaseId = Math.max(...purchases.map(p => p.Purchase_ID), 0) + 1;
+    
+    // Get customer-specific purchase number (incremental per customer)
+    const customerPurchases = purchases.filter(p => p.Customer_ID === currentUser.Customer_ID);
+    const customerPurchaseNumber = customerPurchases.length + 1;
+
+    const newPurchase = {
+      Purchase_ID: newPurchaseId,
+      Total_Amount: total,
+      Payment_Method: 'Card' as 'Card' | 'Cash',
+      Purchase_Date: new Date().toISOString().replace('T', ' ').split('.')[0],
+      Customer_ID: currentUser.Customer_ID,
+      Membership_ID: null
+    };
+
+    // Add to purchases array
+    purchases.push(newPurchase);
+
+    // Handle membership purchase
+    if (hasMembershipInCart) {
+      const existingMembership = memberships.find(m => m.Customer_ID === currentUser.Customer_ID);
+      
+      if (existingMembership) {
+        // Extend membership by 1 year (365 days)
+        const currentEndDate = new Date(existingMembership.End_Date);
+        const today = new Date();
+        
+        // If membership is expired, extend from today; otherwise extend from current end date
+        const baseDate = currentEndDate < today ? today : currentEndDate;
+        const newEndDate = new Date(baseDate);
+        newEndDate.setDate(newEndDate.getDate() + 365);
+        
+        existingMembership.End_Date = newEndDate.toISOString().split('T')[0];
+        existingMembership.Membership_Status = true;
+        existingMembership.Last_Renewal_Date = new Date().toISOString().split('T')[0];
+        existingMembership.Total_Renewals += 1;
+        
+        const action = currentEndDate < today ? 'renewed' : 'extended';
+        toast.success(`Membership ${action}! New expiration: ${newEndDate.toLocaleDateString()}`);
+      } else {
+        // Create new membership
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(startDate.getDate() + 365);
+        
+        const newMembership = {
+          Customer_ID: currentUser.Customer_ID,
+          Price: cart.find(item => item.id === 9000)?.price || 149.99,
+          Start_Date: startDate.toISOString().split('T')[0],
+          End_Date: endDate.toISOString().split('T')[0],
+          Membership_Status: true,
+          Last_Renewal_Date: startDate.toISOString().split('T')[0],
+          Total_Renewals: 0
+        };
+        
+        memberships.push(newMembership);
+        toast.success('Welcome to WildWood Zoo Membership!');
+      }
+    }
+
+    // Clear cart and show success
+    clearCart();
+    setShowCheckoutDialog(false);
+    toast.success(`Purchase confirmed! Order #${customerPurchaseNumber}`);
   };
 
   return (
@@ -225,6 +308,7 @@ export function CartPage({ cart, removeFromCart, updateCartQuantity, clearCart, 
                     <Button 
                       className="w-full bg-green-600 hover:bg-green-700 mt-6 cursor-pointer"
                       disabled={cart.length === 0}
+                      onClick={handleCheckout}
                     >
                       Proceed to Checkout
                     </Button>
@@ -275,6 +359,54 @@ export function CartPage({ cart, removeFromCart, updateCartQuantity, clearCart, 
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Clear Cart
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Checkout Confirmation Dialog */}
+      <AlertDialog open={showCheckoutDialog} onOpenChange={setShowCheckoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Purchase</AlertDialogTitle>
+            <AlertDialogDescription>
+              Review your order details and confirm your purchase.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+              {hasMembership && memberDiscount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Member Discount (10%):</span>
+                  <span>-${memberDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>Tax (8%):</span>
+                <span>${tax.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                <span>Total:</span>
+                <span className="text-green-600">${total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <span className="text-sm text-blue-700">Payment will be processed via card.</span>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmCheckout}
+              className="bg-green-600 hover:bg-green-700 cursor-pointer"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Confirm Purchase
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

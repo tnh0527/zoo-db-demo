@@ -871,6 +871,16 @@ export const getCustomerMembership = (customerId: number): Membership | null => 
   return memberships.find(m => m.Customer_ID === customerId && m.Membership_Status) || null;
 };
 
+// Helper function to get customer-specific purchase number (incremental per customer)
+export const getCustomerPurchaseNumber = (customerId: number, purchaseId: number): number => {
+  const customerPurchases = purchases
+    .filter(p => p.Customer_ID === customerId)
+    .sort((a, b) => new Date(a.Purchase_Date).getTime() - new Date(b.Purchase_Date).getTime());
+  
+  const index = customerPurchases.findIndex(p => p.Purchase_ID === purchaseId);
+  return index !== -1 ? index + 1 : customerPurchases.length + 1;
+};
+
 // Animal Management Functions
 export const addAnimal = (animal: Omit<Animal, 'Animal_ID'>) => {
   const newId = Math.max(...animals.map(a => a.Animal_ID), 0) + 1;

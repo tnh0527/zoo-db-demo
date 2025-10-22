@@ -1,48 +1,47 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Clock, MapPin } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
+import { exhibits, exhibitActivities } from "../data/mockData";
 
-// Generate daily activities that rotate based on the day
+// Get today's activities based on even/odd rotation
+// 8 exhibits x 2 activities = 16 total activities
+// On even days: show Activity_Order 1 (8 activities)
+// On odd days: show Activity_Order 2 (8 activities)
 const getTodaysSchedule = () => {
-  const allActivities = [
-    { time: "9:00 AM", activity: "Zoo Opens - Morning Welcome", location: "Main Entrance" },
-    { time: "9:30 AM", activity: "Sea Lion Feeding", location: "Aquatic Center - Zone B" },
-    { time: "10:00 AM", activity: "Giraffe Encounter", location: "African Savanna - Zone A" },
-    { time: "10:30 AM", activity: "Primate Enrichment Activity", location: "Primate Forest - Zone A" },
-    { time: "11:00 AM", activity: "Lion Feeding Time", location: "Big Cat Territory - Zone A" },
-    { time: "11:30 AM", activity: "Reptile House Tour", location: "Reptile House - Zone B" },
-    { time: "12:00 PM", activity: "Tropical Birds Flying Show", location: "Bird Sanctuary - Zone C" },
-    { time: "12:30 PM", activity: "Penguin Parade", location: "Arctic Tundra - Zone B" },
-    { time: "1:00 PM", activity: "Sea Lion Splash", location: "Aquatic Center - Zone B" },
-    { time: "1:30 PM", activity: "Panda Feeding Time", location: "Asian Bamboo Grove - Zone D" },
-    { time: "2:00 PM", activity: "Elephant Enrichment", location: "African Savanna - Zone A" },
-    { time: "2:30 PM", activity: "Kangaroo Feeding Time", location: "Australian Outback - Zone C" },
-    { time: "3:00 PM", activity: "Conservation Talk", location: "Education Center" },
-    { time: "3:30 PM", activity: "Monkey Mischief Show", location: "Primate Forest - Zone A" },
-    { time: "4:00 PM", activity: "Bear Country Talk", location: "North American Wilderness - Zone D" },
-    { time: "4:30 PM", activity: "Otter Playtime", location: "Aquatic Center - Zone B" },
-    { time: "5:00 PM", activity: "Desert Sunset Tour", location: "Desert Oasis - Zone D" },
-    { time: "5:30 PM", activity: "Evening Animal Rounds", location: "Various Locations" }
-  ];
-  
-  // Randomize but consistently based on the day
   const today = new Date();
-  const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
-  const seed = dayOfYear;
+  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
   
-  // Simple shuffle with seed for consistency within the same day
-  const shuffled = [...allActivities];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = (seed * (i + 1)) % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
+  // Even days: Activity_Order 1, Odd days: Activity_Order 2
+  const activityOrder = dayOfYear % 2 === 0 ? 1 : 2;
   
-  // Return 12 activities for the day
-  return shuffled.slice(0, 12).sort((a, b) => {
-    const timeA = parseInt(a.time.replace(/[^\d]/g, ''));
-    const timeB = parseInt(b.time.replace(/[^\d]/g, ''));
-    return timeA - timeB;
-  });
+  // Get activities for today based on rotation
+  const todaysActivities = exhibitActivities
+    .filter(activity => activity.Activity_Order === activityOrder)
+    .map(activity => {
+      const exhibit = exhibits.find(e => e.Exhibit_ID === activity.Exhibit_ID);
+      return {
+        time: exhibit?.Display_Time || "10:00:00",
+        activity: activity.Activity_Name,
+        location: exhibit?.exhibit_Name || "Unknown Location",
+        description: activity.Activity_Description
+      };
+    })
+    .sort((a, b) => a.time.localeCompare(b.time))
+    .map(item => ({
+      ...item,
+      time: formatTime(item.time)
+    }));
+  
+  return todaysActivities;
+};
+
+// Helper to format time from 24-hour to 12-hour format
+const formatTime = (time: string): string => {
+  const [hours, minutes] = time.split(':');
+  const hour = parseInt(hours);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${displayHour}:${minutes} ${period}`;
 };
 
 export function OperationalDashboard() {

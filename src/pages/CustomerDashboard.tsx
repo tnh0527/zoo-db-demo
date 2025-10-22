@@ -1,5 +1,5 @@
 import type { Customer } from '../data/mockData';
-import { purchases, tickets, memberships, purchaseItems, items, getCustomerMembership } from '../data/mockData';
+import { purchases, tickets, memberships, purchaseItems, items, getCustomerMembership, getCustomerPurchaseNumber } from '../data/mockData';
 import { ShoppingCart, Ticket, ShoppingBag, Calendar, Receipt, Eye, EyeOff, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { Crown } from "lucide-react";
@@ -13,13 +13,20 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import type { Purchase } from "../data/mockData";
 
+// Helper function to format numbers with commas
+const formatNumber = (num: number): string => {
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 interface CustomerDashboardProps {
   user: Customer;
   onNavigate?: (page: 'tickets' | 'shop') => void;
 }
 
 export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) {
-  const customerPurchases = purchases.filter(p => p.Customer_ID === user.Customer_ID);
+  const customerPurchases = purchases
+    .filter(p => p.Customer_ID === user.Customer_ID)
+    .sort((a, b) => new Date(b.Purchase_Date).getTime() - new Date(a.Purchase_Date).getTime());
   const recentPurchases = customerPurchases.slice(0, 3);
   const membership = getCustomerMembership(user.Customer_ID);
 
@@ -130,7 +137,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                   className="bg-white text-green-700 hover:bg-green-50 mt-2"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Renew Membership
+                  {isMembershipExpired ? 'Renew Membership' : 'Extend Membership'}
                 </Button>
               </>
             )}
@@ -213,7 +220,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                                 </span>
                               </div>
                               <p className="text-sm text-gray-700">
-                                Purchase #{purchase.Purchase_ID}
+                                Order #{getCustomerPurchaseNumber(user.Customer_ID, purchase.Purchase_ID)}
                               </p>
                             </div>
                             <div className="text-right ml-6">
@@ -261,7 +268,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                             </span>
                           </div>
                           <p className="text-sm text-gray-700">
-                            Purchase #{purchase.Purchase_ID}
+                            Order #{getCustomerPurchaseNumber(user.Customer_ID, purchase.Purchase_ID)}
                           </p>
                         </div>
                         <div className="text-right ml-6">
@@ -422,11 +429,11 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                         </div>
                         <div>
                           <p className="text-gray-600">Membership ID</p>
-                          <p className="font-medium">#{membership.Membership_ID}</p>
+                          <p className="font-medium">#{membership.Customer_ID}</p>
                         </div>
                         <div>
-                          <p className="text-gray-600">Member Benefits</p>
-                          <p className="font-medium text-green-600">Active</p>
+                          <p className="text-gray-600">Discount Benefits</p>
+                          <p className="font-medium text-green-600">Applied</p>
                         </div>
                       </div>
                     </div>
@@ -453,7 +460,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                     <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <p className="text-sm text-gray-600 mb-1">Total Spent</p>
                       <p className="text-2xl font-semibold text-blue-600">
-                        ${customerPurchases.reduce((sum, p) => sum + p.Total_Amount, 0).toFixed(2)}
+                        ${formatNumber(customerPurchases.reduce((sum, p) => sum + p.Total_Amount, 0))}
                       </p>
                     </div>
                   </div>
@@ -472,7 +479,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                     <div className="flex items-center space-x-2">
                       <Input 
                         type={showPassword ? "text" : "password"}
-                        value="password123"
+                        value={user.Customer_Password}
                         disabled
                         className="max-w-xs"
                       />
@@ -552,9 +559,9 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
       <Dialog open={selectedPurchase !== null} onOpenChange={() => setSelectedPurchase(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Purchase Details</DialogTitle>
+            <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>
-              Purchase #{selectedPurchase?.Purchase_ID} - {selectedPurchase && new Date(selectedPurchase.Purchase_Date).toLocaleDateString()}
+              Order #{selectedPurchase && getCustomerPurchaseNumber(user.Customer_ID, selectedPurchase.Purchase_ID)} - {selectedPurchase && new Date(selectedPurchase.Purchase_Date).toLocaleDateString()}
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[65vh] pr-4">
@@ -565,8 +572,8 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                   <CardContent className="pt-6">
                     <div className="space-y-4">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Purchase ID:</span>
-                        <span className="font-medium">#{selectedPurchase.Purchase_ID}</span>
+                        <span className="text-gray-600">Order Number:</span>
+                        <span className="font-medium">#{getCustomerPurchaseNumber(user.Customer_ID, selectedPurchase.Purchase_ID)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Date:</span>
@@ -576,12 +583,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                         <span className="text-gray-600">Payment Method:</span>
                         <Badge variant="secondary">{selectedPurchase.Payment_Method}</Badge>
                       </div>
-                      {selectedPurchase.Membership_ID && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Membership ID:</span>
-                          <span className="font-medium">#{selectedPurchase.Membership_ID}</span>
-                        </div>
-                      )}
+
                       <div className="border-t pt-4">
                         <div className="flex justify-between">
                           <span className="font-medium">Total Amount:</span>
@@ -605,11 +607,11 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                               <div className="flex justify-between items-center">
                                 <div>
                                   <p className="font-medium">{ticket.Ticket_Type} Ticket</p>
-                                  <p className="text-sm text-gray-600">Valid: {new Date(ticket.Valid_Date).toLocaleDateString()}</p>
+                                  <p className="text-sm text-gray-600">Quantity: {ticket.Quantity}</p>
                                   <p className="text-sm text-gray-600">Ticket ID: #{ticket.Ticket_ID}</p>
                                 </div>
                                 <div className="text-right">
-                                  <p className="font-semibold text-green-600">${ticket.Price.toFixed(2)}</p>
+                                  <p className="font-semibold text-green-600">${(ticket.Price * ticket.Quantity).toFixed(2)}</p>
                                 </div>
                               </div>
                             </CardContent>
@@ -620,43 +622,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                   );
                 })()}
 
-                {/* Membership included in this purchase */}
-                {selectedPurchase.Membership_ID && (() => {
-                  const purchaseMembership = memberships.find(m => m.Purchase_ID === selectedPurchase.Purchase_ID);
-                  return purchaseMembership && (
-                    <div>
-                      <h3 className="font-medium mb-3">Membership</h3>
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="space-y-2">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Membership ID:</span>
-                              <span className="font-medium">#{purchaseMembership.Membership_ID}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Start Date:</span>
-                              <span className="font-medium">{new Date(purchaseMembership.Start_Date).toLocaleDateString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">End Date:</span>
-                              <span className="font-medium">{new Date(purchaseMembership.End_Date).toLocaleDateString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Status:</span>
-                              <Badge className={purchaseMembership.Membership_Status ? 'bg-green-600' : 'bg-red-500'}>
-                                {purchaseMembership.Membership_Status ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </div>
-                            <div className="border-t pt-2 flex justify-between">
-                              <span className="font-medium">Price:</span>
-                              <span className="font-semibold text-green-600">${purchaseMembership.Price.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  );
-                })()}
+
 
                 {/* Gift Shop Items included in this purchase */}
                 {(() => {
@@ -677,8 +643,8 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                                     <p className="text-sm text-gray-600">Item ID: #{item?.Item_ID}</p>
                                   </div>
                                   <div className="text-right">
-                                    <p className="font-semibold text-green-600">${item ? (item.Price * purchaseItem.Quantity).toFixed(2) : '0.00'}</p>
-                                    <p className="text-xs text-gray-500">${item?.Price.toFixed(2)} each</p>
+                                    <p className="font-semibold text-green-600">${(purchaseItem.Unit_Price * purchaseItem.Quantity).toFixed(2)}</p>
+                                    <p className="text-xs text-gray-500">${purchaseItem.Unit_Price.toFixed(2)} each</p>
                                   </div>
                                 </div>
                               </CardContent>

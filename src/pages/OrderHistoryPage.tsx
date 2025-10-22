@@ -2,15 +2,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import type { Customer } from "../data/mockData";
-import { purchases, tickets, purchaseItems, items, getCustomerMembership, memberships } from "../data/mockData";
+import { purchases, tickets, purchaseItems, items, getCustomerMembership, memberships, getCustomerPurchaseNumber } from "../data/mockData";
 import { Download, Receipt } from "lucide-react";
+
+// Helper function to format numbers with commas
+const formatNumber = (num: number): string => {
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 interface OrderHistoryPageProps {
   user: Customer;
 }
 
 export function OrderHistoryPage({ user }: OrderHistoryPageProps) {
-  const customerPurchases = purchases.filter(p => p.Customer_ID === user.Customer_ID);
+  const customerPurchases = purchases
+    .filter(p => p.Customer_ID === user.Customer_ID)
+    .sort((a, b) => new Date(b.Purchase_Date).getTime() - new Date(a.Purchase_Date).getTime());
   const customerTickets = tickets.filter(t => 
     customerPurchases.some(p => p.Purchase_ID === t.Purchase_ID)
   );
@@ -51,7 +58,7 @@ export function OrderHistoryPage({ user }: OrderHistoryPageProps) {
                             <div>
                               <div className="flex items-center space-x-3 mb-2">
                                 <Badge variant="secondary">{purchase.Payment_Method}</Badge>
-                                <span className="text-sm text-gray-600">Order #{purchase.Purchase_ID}</span>
+                                <span className="text-sm text-gray-600">Order #{getCustomerPurchaseNumber(user.Customer_ID, purchase.Purchase_ID)}</span>
                               </div>
                               <p className="text-sm text-gray-600">
                                 {new Date(purchase.Purchase_Date).toLocaleString()}
@@ -66,18 +73,11 @@ export function OrderHistoryPage({ user }: OrderHistoryPageProps) {
 
                           <div className="bg-gray-50 rounded-lg p-4 mb-3">
                             <p className="text-sm font-medium text-gray-700 mb-2">Items:</p>
-                            {purchase.Membership_ID && (() => {
-                              const purchaseMembership = memberships.find(m => m.Purchase_ID === purchase.Purchase_ID);
-                              return purchaseMembership && (
-                                <p className="text-sm text-gray-600">• Annual Membership - ${purchaseMembership.Price.toFixed(2)}</p>
-                              );
-                            })()}
                             {purchaseTickets.length > 0 && (
                               <>
                                 {purchaseTickets.map((ticket) => (
                                   <p key={ticket.Ticket_ID} className="text-sm text-gray-600">
-                                    • {ticket.Ticket_Type} Ticket - Valid: {new Date(ticket.Valid_Date).toLocaleDateString()} - ${ticket.Price.toFixed(2)}
-                                    {ticket.Is_Used && <Badge className="ml-2 text-xs bg-gray-200 text-gray-700">Used</Badge>}
+                                    • {ticket.Ticket_Type} Ticket (x{ticket.Quantity}) - ${(ticket.Price * ticket.Quantity).toFixed(2)}
                                   </p>
                                 ))}
                               </>
@@ -88,14 +88,14 @@ export function OrderHistoryPage({ user }: OrderHistoryPageProps) {
                                 const item = items.find(i => i.Item_ID === purchaseItem.Item_ID);
                                 return item && (
                                   <p key={purchaseItem.Item_ID} className="text-sm text-gray-600">
-                                    • {item.Item_Name} (x{purchaseItem.Quantity}) - ${(item.Price * purchaseItem.Quantity).toFixed(2)}
+                                    • {item.Item_Name} (x{purchaseItem.Quantity}) - ${(purchaseItem.Unit_Price * purchaseItem.Quantity).toFixed(2)}
                                   </p>
                                 );
                               });
                             })()}
-                            {!purchase.Membership_ID && purchaseTickets.length === 0 && 
+                            {purchaseTickets.length === 0 && 
                              purchaseItems.filter(pi => pi.Purchase_ID === purchase.Purchase_ID).length === 0 && (
-                              <p className="text-sm text-gray-600">• No items found</p>
+                              <p className="text-sm text-gray-600">• Purchase completed</p>
                             )}
                           </div>
 
@@ -136,7 +136,7 @@ export function OrderHistoryPage({ user }: OrderHistoryPageProps) {
               <Card>
                 <CardContent className="pt-6 text-center">
                   <div className="text-3xl text-green-600 mb-2">
-                    ${customerPurchases.reduce((sum, p) => sum + p.Total_Amount, 0).toFixed(2)}
+                    ${formatNumber(customerPurchases.reduce((sum, p) => sum + p.Total_Amount, 0))}
                   </div>
                   <p className="text-gray-700">Total Spent</p>
                 </CardContent>

@@ -6,7 +6,9 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { loginAccounts, customers, type Employee, type Customer, getEmployeeRole } from "../data/mockData";
 import type { UserType } from "../App";
-import { ArrowLeft, Heart } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { ZooLogo } from "../components/ZooLogo";
+import { toast } from "sonner@2.0.3";
 
 interface LoginPageProps {
   onLogin: (user: Employee | Customer, type: UserType) => void;
@@ -81,8 +83,20 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
     // Add to customers array
     customers.push(newCustomer);
 
-    // Log them in
-    onLogin(newCustomer, 'customer');
+    // Show success toast and switch to login
+    toast.success('Account created successfully! Please log in to continue.');
+    setShowSignup(false);
+    setEmail(signupData.email);
+    
+    // Clear signup form
+    setSignupData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: ''
+    });
   };
 
   return (
@@ -99,11 +113,9 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
         </Button>
 
         {/* Logo */}
-        <div className="flex items-center justify-center space-x-2 mb-8">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-            <Heart className="h-7 w-7 text-green-600" />
-          </div>
-          <span className="text-3xl font-semibold text-white">Wildwood Zoo</span>
+        <div className="flex items-center justify-center space-x-3 mb-8">
+          <ZooLogo size={60} className="bg-white rounded-full p-2" />
+          <span className="text-4xl font-semibold text-white">WildWood Zoo</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -152,7 +164,7 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
                       <Input
                         id="password"
                         type="password"
-                        placeholder="••••••••"
+                        placeholder={password ? "••••••••" : ""}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
@@ -218,14 +230,13 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="phone">Phone</Label>
+                      <Label htmlFor="phone">Phone (Optional)</Label>
                       <Input
                         id="phone"
                         type="tel"
                         placeholder="555-0101"
                         value={signupData.phone}
                         onChange={(e) => setSignupData({...signupData, phone: e.target.value})}
-                        required
                       />
                     </div>
                     <div>
@@ -273,7 +284,6 @@ export function LoginPage({ onLogin, onBack }: LoginPageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Quick Login (Demo Accounts)</CardTitle>
-              <CardDescription>Click any account below to login instantly</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3 max-h-[500px] overflow-y-auto">

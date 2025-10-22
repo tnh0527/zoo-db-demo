@@ -125,11 +125,14 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
   }, [allEmployees]);
 
   // Calculate statistics from database with date filtering
-  const filteredTickets = tickets.filter(t => filterByDateRange(t.Valid_Date));
   const filteredPurchases = purchases.filter(p => filterByDateRange(p.Purchase_Date));
+  const filteredTickets = tickets.filter(t => {
+    const purchase = purchases.find(p => p.Purchase_ID === t.Purchase_ID);
+    return purchase && filterByDateRange(purchase.Purchase_Date);
+  });
   const filteredMemberships = memberships.filter(m => filterByDateRange(m.Start_Date));
   
-  const ticketRevenue = filteredTickets.reduce((sum, t) => sum + t.Price, 0);
+  const ticketRevenue = filteredTickets.reduce((sum, t) => sum + (t.Price * t.Quantity), 0);
   const membershipRevenue = filteredMemberships.reduce((sum, m) => sum + m.Price, 0);
   const giftShopRevenue = giftShopItems.reduce((sum, item) => sum + item.Price, 0) * 2.5;
   const foodRevenue = foodItems.reduce((sum, item) => sum + item.Price, 0) * 3.2;
