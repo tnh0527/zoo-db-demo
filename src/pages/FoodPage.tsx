@@ -191,34 +191,7 @@ export function FoodPage() {
         </div>
       </section>
 
-      {/* Dining Info */}
-      <section className="py-16 bg-green-50">
-        <div className="container mx-auto px-6">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl mb-4">Dining Information</h2>
-            <p className="text-gray-600 mb-8">
-              All concession stands are open during zoo operating hours. Seating areas are available near each location.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-lg">
-                <div className="text-2xl text-green-600 mb-2">💳</div>
-                <p className="font-medium">All Payments</p>
-                <p className="text-sm text-gray-600">Cash & Card accepted</p>
-              </div>
-              <div className="bg-white p-6 rounded-lg">
-                <div className="text-2xl text-green-600 mb-2">🍽️</div>
-                <p className="font-medium">Outdoor Seating</p>
-                <p className="text-sm text-gray-600">Covered & shaded areas</p>
-              </div>
-              <div className="bg-white p-6 rounded-lg">
-                <div className="text-2xl text-green-600 mb-2">♿</div>
-                <p className="font-medium">Accessible</p>
-                <p className="text-sm text-gray-600">All locations ADA compliant</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+
     </div>
   );
 }

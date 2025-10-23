@@ -41,12 +41,13 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
   const [editingAnimal, setEditingAnimal] = useState<Animal | null>(null);
   const [lastUpdated] = useState(new Date());
 
-  // Salary state for each job type (excluding admin)
+  // Salary state for each job type (5 shared login roles)
   const [salaries, setSalaries] = useState({
-    2: 72000, // Veterinarian
-    3: 45000, // Zookeeper
-    4: 35000, // Gift Shop Worker
-    5: 32000  // Concession Worker
+    2: 72000, // Supervisor
+    3: 72000, // Veterinarian
+    4: 45000, // Zookeeper
+    5: 32000, // Concession Worker
+    6: 35000  // Gift Shop Worker
   });
 
   // Temporary salary state for editing
@@ -56,6 +57,20 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
   const [isPricingManagementOpen, setIsPricingManagementOpen] = useState(false);
   const [tempTicketPrices, setTempTicketPrices] = useState({ ...ticketPrices });
   const [tempMembershipPrice, setTempMembershipPrice] = useState(membershipPrice);
+
+  // Update supervisor salaries on mount and when locations change
+  useEffect(() => {
+    setAllEmployees(prevEmployees => prevEmployees.map(emp => {
+      // Check if this employee is a supervisor of any zone
+      const isSupervisor = allLocations.some(loc => loc.Supervisor_ID === emp.Employee_ID);
+      
+      if (isSupervisor) {
+        // Employee is a supervisor, use supervisor salary
+        return { ...emp, Salary: salaries[2] };
+      }
+      return emp;
+    }));
+  }, []); // Only run on mount
 
   // Helper function to filter data by date range
   const filterByDateRange = (dateString: string) => {
@@ -193,12 +208,30 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
   };
 
   const handleAssignSupervisor = (zoneId: number, supervisorId: number | null) => {
+    // Update location with new supervisor
     setAllLocations(allLocations.map(loc => 
       loc.Location_ID === zoneId ? { 
         ...loc, 
         Supervisor_ID: supervisorId
       } : loc
     ));
+    
+    // Update employee salaries based on supervisor status
+    setAllEmployees(allEmployees.map(emp => {
+      const isSupervisor = supervisorId === emp.Employee_ID || 
+                          allLocations.some(loc => loc.Location_ID !== zoneId && loc.Supervisor_ID === emp.Employee_ID);
+      const wasSupervisorOfThisZone = selectedZone?.Supervisor_ID === emp.Employee_ID;
+      
+      if (supervisorId === emp.Employee_ID) {
+        // This employee is being assigned as supervisor, give them supervisor salary
+        return { ...emp, Salary: salaries[2] };
+      } else if (wasSupervisorOfThisZone && !allLocations.some(loc => loc.Location_ID !== zoneId && loc.Supervisor_ID === emp.Employee_ID)) {
+        // This employee was removed as supervisor and is not supervising other zones, revert to their job salary
+        return { ...emp, Salary: salaries[emp.Job_ID as keyof typeof salaries] || emp.Salary };
+      }
+      return emp;
+    }));
+    
     setIsManageZoneOpen(false);
     setSelectedZone(null);
     setSupervisorSearch('');
@@ -209,12 +242,21 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
     setSalaries({ ...tempSalaries });
     
     // Update all employees with new salaries
-    setAllEmployees(allEmployees.map(emp => ({
-      ...emp,
-      Salary: tempSalaries[emp.Job_ID as keyof typeof tempSalaries] || emp.Salary
-    })));
+    setAllEmployees(allEmployees.map(emp => {
+      // Check if this employee is a supervisor of any zone
+      const isSupervisor = allLocations.some(loc => loc.Supervisor_ID === emp.Employee_ID);
+      
+      if (isSupervisor) {
+        // Employee is a supervisor, use supervisor salary
+        return { ...emp, Salary: tempSalaries[2] };
+      } else {
+        // Use the salary for their job type
+        return { ...emp, Salary: tempSalaries[emp.Job_ID as keyof typeof tempSalaries] || emp.Salary };
+      }
+    }));
     
     setIsSalaryManagementOpen(false);
+    toast.success('Salaries updated successfully!');
   };
 
   const handleSalaryDialogOpen = (open: boolean) => {
@@ -494,10 +536,10 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
           
           <Card>
             <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Ticket Prices */}
                 <div>
-                  <h3 className="font-semibold mb-4 text-green-700">Day Pass Tickets</h3>
+                  <h3 className="font-semibold mb-3 text-green-700">Day Pass Tickets</h3>
                   <div className="space-y-2">
                     {Object.entries(ticketPrices).map(([type, price]) => (
                       <div key={type} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
@@ -510,7 +552,7 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
 
                 {/* Membership Price */}
                 <div>
-                  <h3 className="font-semibold mb-4 text-purple-700">Annual Membership</h3>
+                  <h3 className="font-semibold mb-3 text-purple-700">Annual Membership</h3>
                   <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-gray-700">Annual Membership</span>
@@ -757,12 +799,13 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
           </div>
           <Card>
             <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {jobTitles.filter(j => j.Job_ID !== 1).map((job) => {
                   const avgSalary = salaries[job.Job_ID as keyof typeof salaries] || 0;
+                  const displayTitle = job.Job_ID === 2 ? 'Supervisor' : job.Title;
                   return (
                     <div key={job.Job_ID} className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <h3 className="font-medium mb-2">{job.Title}</h3>
+                      <h3 className="font-medium mb-2">{displayTitle}</h3>
                       <p className="text-2xl font-semibold text-blue-600 mb-1">${avgSalary.toLocaleString()}</p>
                     </div>
                   );
@@ -781,27 +824,31 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                {jobTitles.filter(j => j.Job_ID !== 1).map((job) => (
-                  <div key={job.Job_ID} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-medium">{job.Title}</h3>
-                      <p className="text-sm text-gray-600">{job.Description}</p>
+                {jobTitles.filter(j => j.Job_ID !== 1).map((job) => {
+                  const displayTitle = job.Job_ID === 2 ? 'Supervisor' : job.Title;
+                  const displayDescription = job.Job_ID === 2 ? 'Zone supervision and operations' : job.Description;
+                  return (
+                    <div key={job.Job_ID} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-medium">{displayTitle}</h3>
+                        <p className="text-sm text-gray-600">{displayDescription}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          type="number"
+                          step="1000"
+                          value={tempSalaries[job.Job_ID as keyof typeof tempSalaries] || 0}
+                          onChange={(e) => setTempSalaries(prev => ({ 
+                            ...prev, 
+                            [job.Job_ID]: parseFloat(e.target.value) || 0 
+                          }))}
+                          className="w-32"
+                        />
+                        <span className="text-gray-600">$/year</span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        type="number"
-                        step="1000"
-                        value={tempSalaries[job.Job_ID as keyof typeof tempSalaries] || 0}
-                        onChange={(e) => setTempSalaries(prev => ({ 
-                          ...prev, 
-                          [job.Job_ID]: parseFloat(e.target.value) || 0 
-                        }))}
-                        className="w-32"
-                      />
-                      <span className="text-gray-600">$/year</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="flex justify-end mt-4">
                 <Button 
