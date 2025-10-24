@@ -22,7 +22,7 @@ interface ConcessionPortalProps {
 }
 
 export function ConcessionPortal({ user, onLogout, onNavigate }: ConcessionPortalProps) {
-  const { concessionItems: menuItems, addConcessionItem, updateConcessionItem, deleteConcessionItem } = useData();
+  const { concessionItems: menuItems, addConcessionItem, updateConcessionItem, deleteConcessionItem, purchases, purchaseConcessionItems } = useData();
   // All concession stands under management (Concession Worker manages all 4 stands)
   const allStands = concessionStands;
   const [showRevenueAllTime, setShowRevenueAllTime] = useState(false);
@@ -40,10 +40,21 @@ export function ConcessionPortal({ user, onLogout, onNavigate }: ConcessionPorta
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<ConcessionItem | null>(null);
   
-  // Stats
-  const todayRevenue = 1845.00;
-  const allTimeRevenue = 15670.50;
-  const itemsSoldToday = 246;
+  // Calculate revenue from actual purchases
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const todayPurchaseConcessionItems = purchaseConcessionItems.filter(pci => {
+    const purchase = purchases.find(p => p.Purchase_ID === pci.Purchase_ID);
+    if (!purchase) return false;
+    const purchaseDate = new Date(purchase.Purchase_Date);
+    purchaseDate.setHours(0, 0, 0, 0);
+    return purchaseDate.getTime() === today.getTime();
+  });
+  
+  const todayRevenue = todayPurchaseConcessionItems.reduce((sum, pci) => sum + (pci.Unit_Price * pci.Quantity), 0);
+  const allTimeRevenue = purchaseConcessionItems.reduce((sum, pci) => sum + (pci.Unit_Price * pci.Quantity), 0);
+  const itemsSoldToday = todayPurchaseConcessionItems.reduce((sum, pci) => sum + pci.Quantity, 0);
   
   // Top selling items with mock quantities (top 3 only)
   const topItems = [

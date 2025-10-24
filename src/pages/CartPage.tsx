@@ -4,41 +4,44 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../components/ui/alert-dialog";
 import { ShoppingCart, Trash2, Plus, Minus, Crown, CheckCircle2 } from "lucide-react";
-import { currentUser, memberships, purchases } from "../data/mockData";
+import { currentUser } from "../data/mockData";
 import { Badge } from "../components/ui/badge";
 import { toast } from "sonner@2.0.3";
+import { useData } from "../data/DataContext";
+import { usePricing } from "../data/PricingContext";
 
 interface CartItem {
   id: number;
   name: string;
   price: number;
   quantity: number;
-  type: 'item' | 'food';
+  type: 'item' | 'food' | 'ticket';
 }
 
 interface CartPageProps {
   cart: CartItem[];
-  addToCart?: (item: { id: number; name: string; price: number; type: 'item' | 'food' }) => void;
-  removeFromCart: (id: number, type: 'item' | 'food') => void;
-  updateCartQuantity: (id: number, type: 'item' | 'food', quantity: number) => void;
+  addToCart?: (item: { id: number; name: string; price: number; type: 'item' | 'food' | 'ticket' }) => void;
+  removeFromCart: (id: number, type: 'item' | 'food' | 'ticket') => void;
+  updateCartQuantity: (id: number, type: 'item' | 'food' | 'ticket', quantity: number) => void;
   clearCart: () => void;
   onNavigate?: (page: 'shop') => void;
 }
 
 export function CartPage({ cart, removeFromCart, updateCartQuantity, clearCart, onNavigate }: CartPageProps) {
-  const [itemToRemove, setItemToRemove] = useState<{ id: number; type: 'item' | 'food'; name: string } | null>(null);
+  const { purchases, addPurchase, addTicket, addPurchaseItem, addPurchaseConcessionItem, memberships: contextMemberships, addMembership, updateMembership } = useData();
+  const [itemToRemove, setItemToRemove] = useState<{ id: number; type: 'item' | 'food' | 'ticket'; name: string } | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
 
   // Check if current user has an active membership
   const hasMembership = currentUser && 'Customer_ID' in currentUser && 
-    memberships.some(m => m.Customer_ID === currentUser.Customer_ID && m.Membership_Status);
+    contextMemberships.some(m => m.Customer_ID === currentUser.Customer_ID && m.Membership_Status);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
   // Apply 10% member discount to items and food (not tickets or memberships)
   const memberDiscount = hasMembership 
-    ? cart.filter(item => item.id < 9000).reduce((sum, item) => sum + (item.price * item.quantity * 0.10), 0)
+    ? cart.filter(item => item.id < 9000 && item.type !== 'ticket').reduce((sum, item) => sum + (item.price * item.quantity * 0.10), 0)
     : 0;
   
   const discountedSubtotal = subtotal - memberDiscount;
@@ -94,21 +97,87 @@ export function CartPage({ cart, removeFromCart, updateCartQuantity, clearCart, 
     const customerPurchases = purchases.filter(p => p.Customer_ID === currentUser.Customer_ID);
     const customerPurchaseNumber = customerPurchases.length + 1;
 
+    // Format date in local timezone to match mockData format (YYYY-MM-DD HH:mm:ss)
+    // Ensure new purchase timestamp is always after the most recent purchase
+    let purchaseDateTime = new Date();
+    
+    // Find the most recent purchase timestamp for this customer
+    if (customerPurchases.length > 0) {
+      const mostRecentPurchase = customerPurchases.reduce((latest, current) => {
+        const latestTime = new Date(latest.Purchase_Date).getTime();
+        const currentTime = new Date(current.Purchase_Date).getTime();
+        return currentTime > latestTime ? current : latest;
+      });
+      
+      const mostRecentTime = new Date(mostRecentPurchase.Purchase_Date).getTime();
+      const currentTime = purchaseDateTime.getTime();
+      
+      // If current time is not after the most recent purchase, add 1 second to most recent
+      if (currentTime <= mostRecentTime) {
+        purchaseDateTime = new Date(mostRecentTime + 1000); // Add 1 second
+      }
+    }
+    
+    const year = purchaseDateTime.getFullYear();
+    const month = String(purchaseDateTime.getMonth() + 1).padStart(2, '0');
+    const day = String(purchaseDateTime.getDate()).padStart(2, '0');
+    const hours = String(purchaseDateTime.getHours()).padStart(2, '0');
+    const minutes = String(purchaseDateTime.getMinutes()).padStart(2, '0');
+    const seconds = String(purchaseDateTime.getSeconds()).padStart(2, '0');
+    const purchaseDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
     const newPurchase = {
       Purchase_ID: newPurchaseId,
       Total_Amount: total,
       Payment_Method: 'Card' as 'Card' | 'Cash',
-      Purchase_Date: new Date().toISOString().replace('T', ' ').split('.')[0],
+      Purchase_Date: purchaseDate,
       Customer_ID: currentUser.Customer_ID,
       Membership_ID: null
     };
 
-    // Add to purchases array
-    purchases.push(newPurchase);
+    // Add purchase to context (which updates all components)
+    addPurchase(newPurchase);
+
+    // Process tickets in cart
+    const ticketItems = cart.filter(item => item.type === 'ticket');
+    ticketItems.forEach(ticketItem => {
+      const newTicketId = Math.floor(Math.random() * 100000) + 10000;
+      const ticketType = ticketItem.name.split(' ')[0] as 'Adult' | 'Child' | 'Senior' | 'Student';
+      
+      addTicket({
+        Ticket_ID: newTicketId,
+        Ticket_Type: ticketType,
+        Price: ticketItem.price,
+        Purchase_ID: newPurchaseId,
+        Quantity: ticketItem.quantity
+      });
+    });
+
+    // Process gift shop items in cart
+    const giftShopItems = cart.filter(item => item.type === 'item');
+    giftShopItems.forEach(item => {
+      addPurchaseItem({
+        Purchase_ID: newPurchaseId,
+        Item_ID: item.id,
+        Quantity: item.quantity,
+        Unit_Price: item.price
+      });
+    });
+
+    // Process food items in cart
+    const foodItems = cart.filter(item => item.type === 'food');
+    foodItems.forEach(item => {
+      addPurchaseConcessionItem({
+        Purchase_ID: newPurchaseId,
+        Concession_Item_ID: item.id,
+        Quantity: item.quantity,
+        Unit_Price: item.price
+      });
+    });
 
     // Handle membership purchase
     if (hasMembershipInCart) {
-      const existingMembership = memberships.find(m => m.Customer_ID === currentUser.Customer_ID);
+      const existingMembership = contextMemberships.find(m => m.Customer_ID === currentUser.Customer_ID);
       
       if (existingMembership) {
         // Extend membership by 1 year (365 days)
@@ -120,10 +189,13 @@ export function CartPage({ cart, removeFromCart, updateCartQuantity, clearCart, 
         const newEndDate = new Date(baseDate);
         newEndDate.setDate(newEndDate.getDate() + 365);
         
-        existingMembership.End_Date = newEndDate.toISOString().split('T')[0];
-        existingMembership.Membership_Status = true;
-        existingMembership.Last_Renewal_Date = new Date().toISOString().split('T')[0];
-        existingMembership.Total_Renewals += 1;
+        // Update membership using DataContext
+        updateMembership(currentUser.Customer_ID, {
+          End_Date: newEndDate.toISOString().split('T')[0],
+          Membership_Status: true,
+          Last_Renewal_Date: new Date().toISOString().split('T')[0],
+          Total_Renewals: existingMembership.Total_Renewals + 1
+        });
         
         const action = currentEndDate < today ? 'renewed' : 'extended';
         toast.success(`Membership ${action}! New expiration: ${newEndDate.toLocaleDateString()}`);
@@ -143,7 +215,8 @@ export function CartPage({ cart, removeFromCart, updateCartQuantity, clearCart, 
           Total_Renewals: 0
         };
         
-        memberships.push(newMembership);
+        // Add membership using DataContext
+        addMembership(newMembership);
         toast.success('Welcome to WildWood Zoo Membership!');
       }
     }
@@ -208,7 +281,7 @@ export function CartPage({ cart, removeFromCart, updateCartQuantity, clearCart, 
                               ${item.price.toFixed(2)} each
                             </p>
                             <p className="text-xs text-gray-500 mt-1">
-                              {item.type === 'item' ? 'Gift Shop Item' : 'Food Item'}
+                              {item.id === 9000 ? 'Membership' : item.type === 'item' ? 'Gift Shop Item' : item.type === 'food' ? 'Food Item' : 'Ticket'}
                             </p>
                           </div>
                           <div className="flex items-center space-x-4">

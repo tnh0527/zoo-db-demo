@@ -24,7 +24,7 @@ interface GiftShopPortalProps {
 const giftShopCategories = ['Accessories & Souvenirs', 'Apparel', 'Toys & Plushies', 'Decorations & Others'];
 
 export function GiftShopPortal({ user, onLogout, onNavigate }: GiftShopPortalProps) {
-  const { items: shopItems, addItem, updateItem, deleteItem } = useData();
+  const { items: shopItems, addItem, updateItem, deleteItem, purchases, purchaseItems } = useData();
   // All gift shops under management (Gift Shop Worker manages all shops)
   const allShops = giftShops;
   const [showRevenueAllTime, setShowRevenueAllTime] = useState(false);
@@ -42,10 +42,21 @@ export function GiftShopPortal({ user, onLogout, onNavigate }: GiftShopPortalPro
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
   
-  // Stats
-  const todayRevenue = 1120.00;
-  const allTimeRevenue = 12580.75;
-  const itemsSoldToday = 118;
+  // Calculate revenue from actual purchases
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const todayPurchaseItems = purchaseItems.filter(pi => {
+    const purchase = purchases.find(p => p.Purchase_ID === pi.Purchase_ID);
+    if (!purchase || pi.Item_ID === 9000) return false; // Exclude memberships
+    const purchaseDate = new Date(purchase.Purchase_Date);
+    purchaseDate.setHours(0, 0, 0, 0);
+    return purchaseDate.getTime() === today.getTime();
+  });
+  
+  const todayRevenue = todayPurchaseItems.reduce((sum, pi) => sum + (pi.Unit_Price * pi.Quantity), 0);
+  const allTimeRevenue = purchaseItems.filter(pi => pi.Item_ID !== 9000).reduce((sum, pi) => sum + (pi.Unit_Price * pi.Quantity), 0);
+  const itemsSoldToday = todayPurchaseItems.reduce((sum, pi) => sum + pi.Quantity, 0);
   
   // Top selling items with mock quantities (top 3 only)
   const topItems = [

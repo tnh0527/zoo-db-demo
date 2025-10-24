@@ -53,7 +53,7 @@ export default function App() {
   const [userType, setUserType] = useState<UserType>(currentUserType);
   
   // Cart state
-  const [cart, setCart] = useState<Array<{ id: number; name: string; price: number; quantity: number; type: 'item' | 'food' }>>([]);
+  const [cart, setCart] = useState<Array<{ id: number; name: string; price: number; quantity: number; type: 'item' | 'food' | 'ticket' }>>([]);
 
   const handleLogin = (loggedInUser: Employee | Customer, type: UserType) => {
     setCurrentUser(loggedInUser, type);
@@ -87,7 +87,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
-  const addToCart = (item: { id: number; name: string; price: number; type: 'item' | 'food' }) => {
+  const addToCart = (item: { id: number; name: string; price: number; type: 'item' | 'food' | 'ticket' }) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(i => i.id === item.id && i.type === item.type);
       if (existingItem) {
@@ -101,11 +101,11 @@ export default function App() {
     });
   };
   
-  const removeFromCart = (id: number, type: 'item' | 'food') => {
+  const removeFromCart = (id: number, type: 'item' | 'food' | 'ticket') => {
     setCart(prevCart => prevCart.filter(item => !(item.id === id && item.type === type)));
   };
   
-  const updateCartQuantity = (id: number, type: 'item' | 'food', quantity: number) => {
+  const updateCartQuantity = (id: number, type: 'item' | 'food' | 'ticket', quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(id, type);
       return;

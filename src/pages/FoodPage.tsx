@@ -4,12 +4,16 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { MapPin, ChevronLeft, ChevronRight, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner@2.0.3";
-import { currentUser, currentUserType, getCustomerMembership, type Customer, concessionStands } from "../data/mockData";
+import { currentUser, currentUserType, type Customer, concessionStands } from "../data/mockData";
 import { useData } from "../data/DataContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
-export function FoodPage() {
-  const { concessionItems } = useData();
+interface FoodPageProps {
+  addToCart?: (item: { id: number; name: string; price: number; type: 'item' | 'food' | 'ticket' }) => void;
+}
+
+export function FoodPage({ addToCart }: FoodPageProps) {
+  const { concessionItems, memberships } = useData();
   
   // Zone mapping based on Location_ID from concessionStands in mockData
   // Stand 1 (Safari Grill) -> Location 1 -> Zone A
@@ -50,7 +54,7 @@ export function FoodPage() {
 
   // Check if current user is a customer with active membership
   const hasMembership = currentUser && currentUserType === 'customer' 
-    ? getCustomerMembership((currentUser as Customer).Customer_ID) !== null
+    ? memberships.some(m => m.Customer_ID === (currentUser as Customer).Customer_ID && m.Membership_Status)
     : false;
 
   const handleNext = (standName: string, totalItems: number) => {
@@ -65,10 +69,6 @@ export function FoodPage() {
       ...prev,
       [standName]: prev[standName] === 0 ? totalItems - 1 : prev[standName] - 1
     }));
-  };
-
-  const calculateDiscountedPrice = (price: number) => {
-    return (price * 0.9).toFixed(2);
   };
 
   return (
@@ -162,11 +162,29 @@ export function FoodPage() {
                             )}
                           </div>
                           <CardContent className="pt-4">
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-3">
                               <h4 className="font-medium text-lg">{item.name}</h4>
                               <span className="text-xl text-green-600 font-semibold">
                                 ${item.price.toFixed(2)}
                               </span>
+                              <Button 
+                                className="w-full bg-green-600 hover:bg-green-700 cursor-pointer"
+                                onClick={() => {
+                                  if (!currentUser) {
+                                    toast.error('Please log in to add items to cart');
+                                  } else if (addToCart) {
+                                    addToCart({
+                                      id: item.id,
+                                      name: item.name,
+                                      price: item.price,
+                                      type: 'food'
+                                    });
+                                    toast.success(`Added ${item.name} to cart!`);
+                                  }
+                                }}
+                              >
+                                Add to Cart
+                              </Button>
                             </div>
                           </CardContent>
                         </Card>

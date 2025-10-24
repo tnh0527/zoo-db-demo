@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { ScrollArea } from "../components/ui/scroll-area";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { Employee, Location, Animal, Enclosure } from "../data/mockData";
-import {employeeRecords, purchases, tickets, memberships, locations, jobTitles, enclosures } from "../data/mockData";
+import {employeeRecords, locations, jobTitles, enclosures } from "../data/mockData";
 import { LogOut, DollarSign, Users, Package, Coffee, Ticket, Crown, UserPlus, Trash2, Calendar, Eye, Edit, Search, Save, Home, Plus, PawPrint } from "lucide-react";
 import { useData } from "../data/DataContext";
 import { toast } from "sonner@2.0.3";
@@ -24,7 +24,7 @@ interface AdminPortalProps {
 }
 
 export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
-  const { animals: animalList, addAnimal, updateAnimal, deleteAnimal, items: giftShopItems, concessionItems: foodItems } = useData();
+  const { animals: animalList, addAnimal, updateAnimal, deleteAnimal, items: giftShopItems, concessionItems: foodItems, purchases, tickets, purchaseItems, purchaseConcessionItems, memberships: contextMemberships } = useData();
   const { ticketPrices, membershipPrice, updateTicketPrices, updateMembershipPrice } = usePricing();
   const [allEmployees, setAllEmployees] = useState(employeeRecords);
   const [allLocations, setAllLocations] = useState(locations);
@@ -76,7 +76,12 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
   const filterByDateRange = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const daysDiff = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Reset time parts to compare just dates
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    const daysDiff = Math.floor((nowOnly.getTime() - dateOnly.getTime()) / (1000 * 60 * 60 * 24));
     
     switch (revenueRange) {
       case 'today':
@@ -145,32 +150,57 @@ export function AdminPortal({ user, onLogout, onNavigate }: AdminPortalProps) {
     const purchase = purchases.find(p => p.Purchase_ID === t.Purchase_ID);
     return purchase && filterByDateRange(purchase.Purchase_Date);
   });
-  const filteredMemberships = memberships.filter(m => filterByDateRange(m.Start_Date));
+  const filteredMemberships = contextMemberships.filter(m => filterByDateRange(m.Start_Date));
   
+  // Calculate ticket revenue from actual ticket purchases
   const ticketRevenue = filteredTickets.reduce((sum, t) => sum + (t.Price * t.Quantity), 0);
-  const membershipRevenue = filteredMemberships.reduce((sum, m) => sum + m.Price, 0);
-  const giftShopRevenue = giftShopItems.reduce((sum, item) => sum + item.Price, 0) * 2.5;
-  const foodRevenue = foodItems.reduce((sum, item) => sum + item.Price, 0) * 3.2;
   
-  const totalRevenue = ticketRevenue + membershipRevenue + giftShopRevenue + foodRevenue;
+  // Calculate membership revenue from memberships created in date range
+  const membershipRevenue = filteredMemberships.reduce((sum, m) => sum + m.Price, 0);
+  
+  // Calculate membership revenue from actual membership purchases (Item_ID 9000)
+  const membershipPurchaseRevenue = purchaseItems
+    .filter(pi => {
+      const purchase = purchases.find(p => p.Purchase_ID === pi.Purchase_ID);
+      return pi.Item_ID === 9000 && purchase && filterByDateRange(purchase.Purchase_Date);
+    })
+    .reduce((sum, pi) => sum + (pi.Unit_Price * pi.Quantity), 0);
+  
+  // Calculate gift shop revenue from actual purchase items (excluding memberships)
+  const giftShopRevenue = purchaseItems
+    .filter(pi => {
+      const purchase = purchases.find(p => p.Purchase_ID === pi.Purchase_ID);
+      return pi.Item_ID !== 9000 && purchase && filterByDateRange(purchase.Purchase_Date);
+    })
+    .reduce((sum, pi) => sum + (pi.Unit_Price * pi.Quantity), 0);
+  
+  // Calculate food revenue from actual concession purchase items
+  const foodRevenue = purchaseConcessionItems
+    .filter(pci => {
+      const purchase = purchases.find(p => p.Purchase_ID === pci.Purchase_ID);
+      return purchase && filterByDateRange(purchase.Purchase_Date);
+    })
+    .reduce((sum, pci) => sum + (pci.Unit_Price * pci.Quantity), 0);
+  
+  const totalRevenue = ticketRevenue + membershipPurchaseRevenue + giftShopRevenue + foodRevenue;
   const totalAnimals = animalList.length;
   const totalEmployees = allEmployees.length;
-  const activeMemb = memberships.filter(m => m.Membership_Status).length;
+  const activeMemb = contextMemberships.filter(m => m.Membership_Status).length;
 
   // Revenue Breakdown
   const revenueBreakdown = [
     { category: 'Tickets', amount: ticketRevenue, color: 'bg-green-600', icon: Ticket },
-    { category: 'Memberships', amount: membershipRevenue, color: 'bg-purple-600', icon: Crown },
+    { category: 'Memberships', amount: membershipPurchaseRevenue, color: 'bg-purple-600', icon: Crown },
     { category: 'Gift Shop', amount: giftShopRevenue, color: 'bg-blue-600', icon: Package },
     { category: 'Food & Beverages', amount: foodRevenue, color: 'bg-orange-600', icon: Coffee },
   ];
 
-  // Ticket stats
+  // Ticket stats - sum quantities instead of counting records
   const ticketStats = [
-    { type: 'Adult', sold: filteredTickets.filter(t => t.Ticket_Type === 'Adult').length },
-    { type: 'Child', sold: filteredTickets.filter(t => t.Ticket_Type === 'Child').length },
-    { type: 'Senior', sold: filteredTickets.filter(t => t.Ticket_Type === 'Senior').length },
-    { type: 'Student', sold: filteredTickets.filter(t => t.Ticket_Type === 'Student').length },
+    { type: 'Adult', sold: filteredTickets.filter(t => t.Ticket_Type === 'Adult').reduce((sum, t) => sum + t.Quantity, 0) },
+    { type: 'Child', sold: filteredTickets.filter(t => t.Ticket_Type === 'Child').reduce((sum, t) => sum + t.Quantity, 0) },
+    { type: 'Senior', sold: filteredTickets.filter(t => t.Ticket_Type === 'Senior').reduce((sum, t) => sum + t.Quantity, 0) },
+    { type: 'Student', sold: filteredTickets.filter(t => t.Ticket_Type === 'Student').reduce((sum, t) => sum + t.Quantity, 0) },
   ];
 
   const handleDeleteEmployee = (emp: Employee) => {

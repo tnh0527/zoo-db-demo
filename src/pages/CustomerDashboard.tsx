@@ -1,5 +1,4 @@
 import type { Customer } from '../data/mockData';
-import { purchases, tickets, memberships, purchaseItems, items, getCustomerMembership, getCustomerPurchaseNumber } from '../data/mockData';
 import { ShoppingCart, Ticket, ShoppingBag, Calendar, Receipt, Eye, EyeOff, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { Crown } from "lucide-react";
@@ -12,6 +11,7 @@ import { ScrollArea } from "../components/ui/scroll-area";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import type { Purchase } from "../data/mockData";
+import { useData } from "../data/DataContext";
 
 // Helper function to format numbers with commas
 const formatNumber = (num: number): string => {
@@ -24,11 +24,22 @@ interface CustomerDashboardProps {
 }
 
 export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) {
+  const { purchases, tickets, purchaseItems, purchaseConcessionItems, memberships, items, concessionItems } = useData();
   const customerPurchases = purchases
     .filter(p => p.Customer_ID === user.Customer_ID)
     .sort((a, b) => new Date(b.Purchase_Date).getTime() - new Date(a.Purchase_Date).getTime());
   const recentPurchases = customerPurchases.slice(0, 3);
-  const membership = getCustomerMembership(user.Customer_ID);
+  const membership = memberships.find(m => m.Customer_ID === user.Customer_ID && m.Membership_Status) || null;
+
+  // Helper function to get customer-specific purchase number
+  // Sorted chronologically (oldest = #1, newest = highest number)
+  const getCustomerPurchaseNumber = (purchaseId: number): number => {
+    const sortedPurchases = purchases
+      .filter(p => p.Customer_ID === user.Customer_ID)
+      .sort((a, b) => new Date(a.Purchase_Date).getTime() - new Date(b.Purchase_Date).getTime());
+    const index = sortedPurchases.findIndex(p => p.Purchase_ID === purchaseId);
+    return index !== -1 ? index + 1 : sortedPurchases.length + 1;
+  };
 
   // Edit Profile State
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -220,7 +231,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                                 </span>
                               </div>
                               <p className="text-sm text-gray-700">
-                                Order #{getCustomerPurchaseNumber(user.Customer_ID, purchase.Purchase_ID)}
+                                Order #{getCustomerPurchaseNumber(purchase.Purchase_ID)}
                               </p>
                             </div>
                             <div className="text-right ml-6">
@@ -268,7 +279,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                             </span>
                           </div>
                           <p className="text-sm text-gray-700">
-                            Order #{getCustomerPurchaseNumber(user.Customer_ID, purchase.Purchase_ID)}
+                            Order #{getCustomerPurchaseNumber(purchase.Purchase_ID)}
                           </p>
                         </div>
                         <div className="text-right ml-6">
@@ -561,7 +572,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>
-              Order #{selectedPurchase && getCustomerPurchaseNumber(user.Customer_ID, selectedPurchase.Purchase_ID)} - {selectedPurchase && new Date(selectedPurchase.Purchase_Date).toLocaleDateString()}
+              Order #{selectedPurchase && getCustomerPurchaseNumber(selectedPurchase.Purchase_ID)} - {selectedPurchase && new Date(selectedPurchase.Purchase_Date).toLocaleDateString()}
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[65vh] pr-4">
@@ -573,7 +584,7 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                     <div className="space-y-4">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Order Number:</span>
-                        <span className="font-medium">#{getCustomerPurchaseNumber(user.Customer_ID, selectedPurchase.Purchase_ID)}</span>
+                        <span className="font-medium">#{getCustomerPurchaseNumber(selectedPurchase.Purchase_ID)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Date:</span>
@@ -624,9 +635,38 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
 
 
 
+                {/* Membership included in this purchase */}
+                {(() => {
+                  const membershipItems = purchaseItems.filter(pi => pi.Purchase_ID === selectedPurchase.Purchase_ID && pi.Item_ID === 9000);
+                  return membershipItems.length > 0 && (
+                    <div>
+                      <h3 className="font-medium mb-3">Membership</h3>
+                      <div className="space-y-2">
+                        {membershipItems.map((purchaseItem, index) => (
+                          <Card key={`membership-${index}`}>
+                            <CardContent className="p-4">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="font-medium">Annual Membership</p>
+                                  <p className="text-sm text-gray-600">Quantity: {purchaseItem.Quantity}</p>
+                                  <p className="text-sm text-gray-600">1 Year Unlimited Access</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold text-green-600">${(purchaseItem.Unit_Price * purchaseItem.Quantity).toFixed(2)}</p>
+                                  <p className="text-xs text-gray-500">${purchaseItem.Unit_Price.toFixed(2)} each</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Gift Shop Items included in this purchase */}
                 {(() => {
-                  const purchaseGiftItems = purchaseItems.filter(pi => pi.Purchase_ID === selectedPurchase.Purchase_ID);
+                  const purchaseGiftItems = purchaseItems.filter(pi => pi.Purchase_ID === selectedPurchase.Purchase_ID && pi.Item_ID !== 9000);
                   return purchaseGiftItems.length > 0 && (
                     <div>
                       <h3 className="font-medium mb-3">Gift Shop Items</h3>
@@ -645,6 +685,38 @@ export function CustomerDashboard({ user, onNavigate }: CustomerDashboardProps) 
                                   <div className="text-right">
                                     <p className="font-semibold text-green-600">${(purchaseItem.Unit_Price * purchaseItem.Quantity).toFixed(2)}</p>
                                     <p className="text-xs text-gray-500">${purchaseItem.Unit_Price.toFixed(2)} each</p>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Concession Items included in this purchase */}
+                {(() => {
+                  const purchaseConcessions = purchaseConcessionItems.filter(pci => pci.Purchase_ID === selectedPurchase.Purchase_ID);
+                  return purchaseConcessions.length > 0 && (
+                    <div>
+                      <h3 className="font-medium mb-3">Food & Beverages</h3>
+                      <div className="space-y-2">
+                        {purchaseConcessions.map((purchaseConcession, index) => {
+                          const item = concessionItems.find(ci => ci.Concession_Item_ID === purchaseConcession.Concession_Item_ID);
+                          return (
+                            <Card key={`${purchaseConcession.Concession_Item_ID}-${index}`}>
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <p className="font-medium">{item?.Item_Name}</p>
+                                    <p className="text-sm text-gray-600">Quantity: {purchaseConcession.Quantity}</p>
+                                    <p className="text-sm text-gray-600">Item ID: #{item?.Concession_Item_ID}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-semibold text-green-600">${(purchaseConcession.Unit_Price * purchaseConcession.Quantity).toFixed(2)}</p>
+                                    <p className="text-xs text-gray-500">${purchaseConcession.Unit_Price.toFixed(2)} each</p>
                                   </div>
                                 </div>
                               </CardContent>

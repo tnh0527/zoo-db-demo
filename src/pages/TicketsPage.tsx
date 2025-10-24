@@ -17,7 +17,7 @@ const comparisonFeatures = [
 
 interface TicketsPageProps {
   onNavigate?: (page: 'login') => void;
-  addToCart?: (item: { id: number; name: string; price: number; type: 'item' | 'food' }) => void;
+  addToCart?: (item: { id: number; name: string; price: number; type: 'item' | 'food' | 'ticket' }) => void;
 }
 
 export function TicketsPage({ onNavigate, addToCart }: TicketsPageProps) {
@@ -69,7 +69,7 @@ export function TicketsPage({ onNavigate, addToCart }: TicketsPageProps) {
         id: ticketIdMap[ticket.id],
         name: ticket.type,
         price: ticket.price,
-        type: 'item'
+        type: 'ticket'
       });
       toast.success(`Added ${ticket.type} to cart!`);
     }
